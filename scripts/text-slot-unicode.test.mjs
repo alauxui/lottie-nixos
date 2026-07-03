@@ -19,7 +19,8 @@ function makeDoc() {
   return {
     slots: Object.fromEntries([
       ["bgColor", { p: { a: 0, k: [0, 0, 0, 1] } }],
-      ...textIds.map((id, index) => [id, { p: { k: [textKeyframe(TEXTS[index])] } }]),
+      // Text slots use `a:1` with keyframed documents; color/scalar slots stay `a:0`.
+      ...textIds.map((id, index) => [id, { p: { a: 1, k: [textKeyframe(TEXTS[index])] } }]),
     ]),
     layers: textIds.map((id, index) => ({
       ty: 5,
@@ -31,6 +32,14 @@ function makeDoc() {
 
 function textKeyframe(text) {
   return { t: 0, s: { t: text, f: "Inter", s: 32 } };
+}
+
+// Keyframed text slots must be `a:1`; `a:0` or missing `a` can render blank.
+function textSlotsMissingAnimatedFlag(doc) {
+  return Object.entries(doc.slots ?? {})
+    .filter(([, def]) => typeof def?.p?.k?.[0]?.s?.t === "string")
+    .filter(([, def]) => def.p.a !== 1)
+    .map(([id]) => id);
 }
 
 function clone(value) {
@@ -83,4 +92,21 @@ test("text edits write both the slot document and bound layer fallback", () => {
   applySlotValues(doc, slots);
 
   assertTextIntegrity(doc, expected);
+});
+
+test("keyframed text slots must be a:1 or Skottie renders them blank", () => {
+  // The canonical fixture must model the render-safe shape.
+  assert.deepEqual(textSlotsMissingAnimatedFlag(makeDoc()), []);
+
+  // A missing `a` next to a keyframed text-document array is the blank-render footgun.
+  const missingFlag = { slots: { headline: { p: { k: [textKeyframe("hi")] } } } };
+  assert.deepEqual(textSlotsMissingAnimatedFlag(missingFlag), ["headline"]);
+
+  // `a: 0` with a keyframe array is the same footgun and must be flagged.
+  const staticFlag = { slots: { headline: { p: { a: 0, k: [textKeyframe("hi")] } } } };
+  assert.deepEqual(textSlotsMissingAnimatedFlag(staticFlag), ["headline"]);
+
+  // Color/scalar slots (a:0 + plain value) are not text slots and must not be flagged.
+  const colorSlot = { slots: { bgColor: { p: { a: 0, k: [0, 0, 0, 1] } } } };
+  assert.deepEqual(textSlotsMissingAnimatedFlag(colorSlot), []);
 });
