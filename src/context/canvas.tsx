@@ -116,7 +116,14 @@ export function CanvasProvider(props: { children: JSX.Element }) {
 
   const slots = createMemo(() => {
     const anim = animation();
-    return anim ? readSlots(anim, sourceDoc(), textOverrides()) : [];
+    if (!anim) return [];
+    const raw = readSlots(anim, sourceDoc(), textOverrides());
+    // Order slots by controls.json (Skottie enumerates them in hash order); uncontrolled sort last.
+    const meta = controls();
+    if (!meta) return raw;
+    const rank = new Map(Object.keys(meta).map((sid, i) => [sid, i]));
+    const END = Number.MAX_SAFE_INTEGER;
+    return [...raw].sort((a, b) => (rank.get(a.id) ?? END) - (rank.get(b.id) ?? END));
   });
 
   createEffect(() => {
