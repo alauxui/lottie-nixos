@@ -204,6 +204,42 @@ renders transparent (the classic "blank text" failure).
   (stroke-on reveals, glyph morphs, handwritten traces) — not as a font
   workaround.
 
+### Point Text vs Box Text
+
+A text document is **point text** by default (no `sz`): the box hugs the glyphs, so
+the layer grows horizontally as the string gets longer and only breaks at a literal
+`\r`. Keep point text where exact glyph or string placement is the design — single
+glyphs, tiles, countdown digits, per-character or choreographed type,
+mask/path/morph text, logos, terminal/code rows, and hand-tuned manual layouts; box
+text would fight their baseline and centering.
+
+Make it **box (paragraph) text** by adding to the text document:
+
+- `sz: [w, h]` — box size. Its presence is what switches the shaper to word-wrap.
+- `ps: [x, y]` — box origin (top-left), relative to the layer anchor.
+- `lh` — line height, i.e. spacing between the wrapped lines.
+
+The shaper wraps words automatically at the `sz[0]` width. Use box text for
+**editable multi-word slots** (headlines, subtitles, quotes, CTAs) so a longer edit
+reflows onto new lines instead of overflowing the frame. Slotted box text must carry
+the identical text document — including `sz`/`ps`/`lh` — in **both** the layer
+fallback (`layers[].t.d.k[0].s`) and the slot document (`slots[id].p.k[0].s`), same
+rule as the string itself. A slot edit changes **only** `.t`; the rest of the
+document shape (box fields, `j`, `lh`, and the slot's own `p.a`/`p.k`) is preserved
+on save.
+
+Verified in canvaskit-wasm 0.41.1: box text wraps on initial load **and re-wraps on
+live slot edits**; `j` maps `0`/`1`/`2` to left/right/center alignment within the
+box; and edit+save preserves the box fields. Two caveats are part of the contract:
+
+- **Top-aligned, no vertical-centering.** Text starts at the box top and grows
+  downward; the box does not center it vertically. Set `ps` to the intended box
+  *top-left*. To visually center a known block, offset `ps.y` by hand (≈
+  `(sz[1] - blockHeight) / 2`).
+- **Height does not clip.** Only `sz[0]` (width) governs wrapping; `sz[1]` (height)
+  neither clips nor constrains — text taller than the box spills past its bottom
+  edge. Size the height generously, or expect bottom overflow on long edits.
+
 ## Vector Text Vertical Placement
 
 Vector text has no line-height or auto-centering. You place every glyph by hand,
