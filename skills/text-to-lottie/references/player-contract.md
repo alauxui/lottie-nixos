@@ -158,6 +158,31 @@ Slot value types map to controls:
 
 Slot types must match the properties that reference them.
 
+### One control, many slots (`targetSids`)
+
+A control may list extra slot ids in `targetSids`: it writes its value to its own
+`sid` **plus** every id listed, and the targeted slots are hidden from the panel.
+List *extra* targets only — never repeat the primary `sid`. Works for any slot type
+(text, color, number, vec2).
+
+```json
+{
+  "controls": [
+    { "sid": "accent",  "label": "Accent",  "targetSids": ["accentDim", "accentGlow"] },
+    { "sid": "heading", "label": "Heading", "targetSids": ["headingOutline"] }
+  ]
+}
+```
+
+One `Accent` swatch drives three color slots; one `Heading` field fills a title and
+its outline copy in a single edit.
+
+Text needs this most: a Skottie text slot carries the whole text document (font,
+size, fill, stroke), so binding differently-styled layers to one slot collapses them
+to a single style (see Native Text). Give each style its own slot (`heading` filled,
+`headingOutline` stroked) and expose one control targeting both — edits use `setText`
+(string only), so each layer keeps its style.
+
 ## Native Text
 
 Native Lottie text layers (`ty:5`) and text slots render in this player, as long
