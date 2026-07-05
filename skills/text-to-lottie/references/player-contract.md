@@ -160,28 +160,28 @@ Slot types must match the properties that reference them.
 
 ### One control, many slots (`targetSids`)
 
-A control writes its value to its own `sid` plus every id in `targetSids`; those
-targeted slots are hidden from the panel, so one input drives them all. List extra
-targets only — never repeat the primary `sid`. The primary and every target must be
-the **same** slot type (text, color, number, or vec2).
+When one value appears in several slots, first prefer a **single shared slot**:
+reference the same `sid` from every property; one control drives them all, nothing
+else needed.
+
+Use `targetSids` only when the value cannot share one slot. The control writes to its
+own `sid` plus every id in `targetSids`, and those targeted slots are hidden from the
+panel. List extra targets only, never repeat the primary `sid`; the primary and every
+target must be the same type.
+
+In practice that means native text: a text slot carries the whole text document (font,
+size, fill, stroke), so the same string at different sizes or styles cannot share one
+slot — give each copy its own slot and drive them with one control. Same-type non-text
+values (a color, a size) should usually share a single slot, so they rarely need this.
 
 ```json
 {
   "controls": [
-    { "sid": "brandColor", "label": "Brand Color", "targetSids": ["headlineAccent", "logoMark", "ctaFill", "endCardAccent"] },
-    { "sid": "brandName",  "label": "Brand Name",  "targetSids": ["heroBrandName", "lowerThirdBrandName", "endCardBrandName"] },
-    { "sid": "eventDate",  "label": "Event Date",  "targetSids": ["heroDate", "agendaDate", "endCardDate"] }
+    { "sid": "brandName", "label": "Brand Name", "targetSids": ["heroBrandName", "lowerThirdBrandName", "endCardBrandName"] },
+    { "sid": "eventDate", "label": "Event Date", "targetSids": ["heroDate", "agendaDate", "endCardDate"] }
   ]
 }
 ```
-
-One brand color fills every accent/logo/CTA slot; one brand name or date updates every
-scene it appears in — while each layer keeps its own size and style.
-
-Native text is the main reason this exists: a Skottie text slot carries the whole text
-document (font, size, fill, stroke), so binding differently styled or sized layers to
-one slot collapses them. Give each its own internal slot, then unify them with one
-`targetSids` control.
 
 ## Native Text
 
