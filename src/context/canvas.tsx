@@ -116,7 +116,19 @@ export function CanvasProvider(props: { children: JSX.Element }) {
 
   const slots = createMemo(() => {
     const anim = animation();
-    return anim ? readSlots(anim, sourceDoc(), textOverrides()) : [];
+    if (!anim) return [];
+    const raw = readSlots(anim, sourceDoc(), textOverrides());
+    // Order slots by controls.json (Skottie enumerates them in hash order); uncontrolled sort last.
+    const meta = controls();
+    if (!meta) return raw;
+    // Slots targeted by another control are internal — hide them from the panel.
+    const hidden = new Set<string>();
+    for (const c of Object.values(meta)) for (const s of c.targetSids ?? []) hidden.add(s);
+    const rank = new Map(Object.keys(meta).map((sid, i) => [sid, i]));
+    const END = Number.MAX_SAFE_INTEGER;
+    return raw
+      .filter((s) => !hidden.has(s.id))
+      .sort((a, b) => (rank.get(a.id) ?? END) - (rank.get(b.id) ?? END));
   });
 
   createEffect(() => {
@@ -193,8 +205,11 @@ export function CanvasProvider(props: { children: JSX.Element }) {
 
   onCleanup(() => clearTimeout(timer));
 
+  // a control's own sid plus its extra targetSids (deduped). See player-contract.md.
+  const targetsOf = (id: string) => [...new Set([id, ...(controls()?.[id]?.targetSids ?? [])])];
+
   const setScalarSlot = (id: string, value: number) => {
-    animation()?.setScalarSlot(id, value);
+    for (const sid of targetsOf(id)) animation()?.setScalarSlot(sid, value);
     dirty = true;
     sourceDirty = true;
   }
@@ -202,13 +217,14 @@ export function CanvasProvider(props: { children: JSX.Element }) {
   const setColorSlot = (id: string, rgba: [number, number, number, number]) => {
     const ck = canvasKit();
     if (!ck) return;
-    animation()?.setColorSlot(id, ck.Color4f(rgba[0], rgba[1], rgba[2], rgba[3]));
+    const color = ck.Color4f(rgba[0], rgba[1], rgba[2], rgba[3]);
+    for (const sid of targetsOf(id)) animation()?.setColorSlot(sid, color);
     dirty = true;
     sourceDirty = true;
   }
 
   const setVec2Slot = (id: string, xy: [number, number]) => {
-    animation()?.setVec2Slot(id, xy);
+    for (const sid of targetsOf(id)) animation()?.setVec2Slot(sid, xy);
     dirty = true;
     sourceDirty = true;
   }
@@ -228,13 +244,21 @@ export function CanvasProvider(props: { children: JSX.Element }) {
   };
 
   const setTextSlot = (id: string, text: string) => {
-    setTextOverrides((value) => ({ ...value, [id]: text }));
+    // fan out to targetSids; setText is string-only, so each layer keeps its style.
+    const ids = targetsOf(id);
+    setTextOverrides((value) => {
+      const next = { ...value };
+      for (const sid of ids) next[sid] = text;
+      return next;
+    });
     // Use setText, not setTextSlot: in canvaskit-wasm 0.41.1 setTextSlot doesn't
     // re-shape the layer and locks later setText calls. setText re-shapes each
     // edit; commit persists from source JSON plus the override above.
     const anim = animation();
-    for (const { key, size } of textLayersForSlot(id)) {
-      anim?.setText(key, text, size);
+    for (const sid of ids) {
+      for (const { key, size } of textLayersForSlot(sid)) {
+        anim?.setText(key, text, size);
+      }
     }
     dirty = true;
     sourceDirty = true;

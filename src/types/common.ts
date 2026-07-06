@@ -4,6 +4,8 @@ export interface ControlMeta {
   min?: number;
   max?: number;
   step?: number;
+  /** Extra slot ids this control also writes to (hidden from the panel). See player-contract.md. */
+  targetSids?: string[];
 }
 
 export interface Scene {
