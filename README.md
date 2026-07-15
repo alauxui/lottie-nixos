@@ -27,6 +27,53 @@ npx skills add diffusionstudio/lottie
 ```
 Then ask your coding agent to generate a Lottie animation using `text-to-lottie`.
 
+## Local MCP Server
+
+You can expose this repo as a local MCP server in [Claude Code](https://claude.ai/code), making the text-to-lottie skill and all reference docs available across every project — no need to reinstall the skill per project.
+
+### Setup
+
+**1. Clone the repo**
+```bash
+git clone https://github.com/diffusionstudio/lottie.git
+cd lottie
+npm install
+```
+
+**2. Register the MCP server with Claude Code**
+```bash
+claude mcp add lottie "$(which node)" "/absolute/path/to/lottie/mcp-server.mjs" --scope user
+```
+
+Replace `/absolute/path/to/lottie` with your actual clone path. Use `--scope user` to make it available globally across all projects.
+
+**3. Verify it's connected**
+```bash
+claude mcp list
+# lottie: ... ✔ Connected
+```
+
+Restart Claude Code and the `lottie` server will appear in your MCP servers list.
+
+### Available tools
+
+| Tool | Description |
+|---|---|
+| `get_skill` | Returns the full `SKILL.md` — always call this first before generating a scene |
+| `list_references` | Lists all available reference docs (recipes, spec, taste guides) |
+| `get_reference` | Reads a reference doc by name (e.g. `player-contract`, `recipe-logo`) |
+| `list_scenes` | Lists all projects and scenes in the local player |
+| `read_scene` | Reads a scene's `lottie.json` before editing |
+| `write_scene` | Writes `lottie.json` (+ optional `controls.json`) to a project/scene |
+
+### Usage
+
+Once connected, ask Claude Code in any project:
+
+> Generate a Lottie loading spinner with a gradient stroke and write it to my-project/scene-1
+
+Claude will automatically call `get_skill`, load the relevant references, generate the animation, and write it to the player — all without leaving your current project.
+
 Example prompt:
 > Create a Lottie animation from the SVG path in https://github.com/JaceThings/SF-Hello/blob/main/SVG/hello-en.svg. Reveal the path with an animation that follows the natural path direction. Apply a premium apple themed gradient to the path. Use ease-in-out timing, a transparent background, and preserve the original SVG geometry.
 
